@@ -5,6 +5,7 @@ import pycurl
 from urllib import urlencode
 from io import BytesIO
 import time
+import os
 
 
 LIST_FILE = 'list.txt'
@@ -28,6 +29,10 @@ print 'Requesting conversion...'
 data = {}
 
 for name in names:
+    if os.path.isfile(OUTPUT.format(name)):
+        print '{} -> exists'.format(name)
+        continue
+
     doc = pq(QUERY_URL.format(name))
     object = doc(SELECTOR)
     path = object.attr('href')
@@ -44,7 +49,7 @@ for name in names:
     c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
     c.perform()
 
-    print '{}: {} [{}]'.format(name, title.encode('utf8'), id)
+    print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
 
     data[name] = id, c
 
