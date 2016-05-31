@@ -53,6 +53,10 @@ for name in names:
 
     data[name] = id, c
 
+if len(data) == 0:
+    print '\nNothing to download.'
+    exit()
+
 print '\nDone. Waiting {} second(s)...'.format(TIME_WAIT)
 time.sleep(TIME_WAIT)
 
