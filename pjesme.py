@@ -6,9 +6,13 @@ from urllib import urlencode
 from io import BytesIO
 import time
 import os
+import sys
 
+if len(sys.argv) < 1:
+    files = ['popis.txt']
+else:
+    files = sys.argv[1:]
 
-LIST_FILE = 'list.txt'
 COOKIEJAR = 'tmp/{}.cookie'
 OUTPUT = 'songs/{}.mp3'
 
@@ -20,9 +24,12 @@ YOUTUBE_URL = 'http://www.youtube.com{}'
 CONVERT_URL = 'http://www.flv2mp3.org/convert/'
 DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
 
+names = []
 
-f = open(LIST_FILE, 'r')
-names = map(lambda x: x[:-1], f.readlines())
+for filename in files:
+    f = open(filename, 'r')
+    names.extend(map(lambda x: x[:-1], f.readlines()))
+
 
 print 'Requesting conversion...'
 
