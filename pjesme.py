@@ -7,6 +7,7 @@ from io import BytesIO
 import time
 import os
 import sys
+import urlparse
 
 
 LIST_FILE = 'list.txt'
@@ -50,7 +51,7 @@ for name in names:
 
     url = YOUTUBE_URL .format(path)
     postdata = {'url': url, 'format': 1, 'service': 'youtube'}
-    id = path[9:]
+    id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
 
     c = pycurl.Curl()
     c.setopt(c.URL, CONVERT_URL)
