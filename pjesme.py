@@ -8,9 +8,31 @@ import time
 import os
 import sys
 import urlparse
+from multiprocessing import Process
+
+def download_song(id, c):
+    f = open(OUTPUT.format(name), 'w')
+
+    c.reset()
+    c.setopt(c.URL, DOWNLOAD_URL.format(id))
+    c.setopt(c.FOLLOWLOCATION, True)
+    c.setopt(c.WRITEDATA, f)
+    c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
+    c.perform()
+    c.close()
+
+    print '{}: {:.3f} MB'.format(name, float(f.tell()) / (1 << 20))
+    f.close()
 
 
 LIST_FILE = 'list.txt'
+
+
+if not os.path.exists('songs'):
+    os.makedirs('songs')
+
+if not os.path.exists('tmp'):
+    os.makedirs('tmp')
 
 COOKIEJAR = 'tmp/{}.cookie'
 OUTPUT = 'songs/{}.mp3'
@@ -22,7 +44,6 @@ SELECTOR = 'h3.yt-lockup-title > a'
 YOUTUBE_URL = 'http://www.youtube.com{}'
 CONVERT_URL = 'http://www.flv2mp3.org/convert/'
 DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
-
 
 if len(sys.argv) <= 1:
     files = [LIST_FILE]
@@ -73,18 +94,16 @@ time.sleep(TIME_WAIT)
 
 print 'Downloading...'
 
+processes = []
+
 for name, (id, c) in data.iteritems():
-    f = open(OUTPUT.format(name), 'w')
+    if __name__ == '__main__':
+        p = Process(target=download_song, args=(id, c,))
+        processes.append(p)
+        p.start()
 
-    c.reset()
-    c.setopt(c.URL, DOWNLOAD_URL.format(id))
-    c.setopt(c.FOLLOWLOCATION, True)
-    c.setopt(c.WRITEDATA, f)
-    c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
-    c.perform()
-    c.close()
+for p in processes:
+    p.join()
 
-    print '{}: {:.3f} MB'.format(name, float(f.tell()) / (1 << 20))
-    f.close()
 
 print 'Done.'
