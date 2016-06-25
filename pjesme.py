@@ -16,7 +16,7 @@ COOKIEJAR = 'tmp/{}.cookie'
 DEFAULT_OUTPUT_DIR = 'songs'
 OUTPUT = '{}/{}.mp3'
 
-DEFAULT_WAIT = 60
+DEFAULT_WAIT = 120
 
 QUERY_URL = 'http://www.youtube.com/results?search_query={}'
 YOUTUBE_URL = 'http://www.youtube.com{}'
