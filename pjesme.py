@@ -40,9 +40,13 @@ parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS',
         (default: {})'''.format(DEFAULT_WAIT))
 args = parser.parse_args()
 
-def download_song(id, c):
+def download_song(name, id, c):
     filename = OUTPUT.format(args.output, name)
-    f = open(filename, 'w')
+    try:
+        f = open(filename, 'w')
+    except IOError as e:
+        print '{} -> error while opening file: {}'.format(name, e)
+        return
 
     c.reset()
     c.setopt(c.URL, DOWNLOAD_URL.format(id))
@@ -139,7 +143,7 @@ processes = []
 
 for name, (id, c) in data.iteritems():
     if __name__ == '__main__':
-        p = Process(target=download_song, args=(id, c,))
+        p = Process(target=download_song, args=(name, id, c))
         processes.append(p)
         p.start()
 
