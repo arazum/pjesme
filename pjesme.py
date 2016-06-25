@@ -49,17 +49,22 @@ def download_song(id, c):
     c.setopt(c.FOLLOWLOCATION, True)
     c.setopt(c.WRITEDATA, f)
     c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
-    c.perform()
-    c.close()
 
-    size = f.tell()
-    f.close()
+    try:
+        c.perform()
+        c.close()
+
+        size = f.tell()
+        f.close()
+    except Exception as e:
+        print '{} -> download error: {}'.format(name, e)
+        return
 
     f = open(filename, 'r')
     if f.read(len(MP3_MAGIC)) == MP3_MAGIC:
-        print '{}: {:.3f} MB'.format(name, float(size) / (1 << 20))
+        print '{} -> {:.3f} MB'.format(name, float(size) / (1 << 20))
     else:
-        print '{}: error (downloaded file not mp3)'.format(name)
+        print '{} -> error (downloaded file not mp3)'.format(name)
         os.remove(filename)
 
     f.close()
