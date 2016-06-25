@@ -13,12 +13,12 @@ import argparse
 
 DEFAULT_LIST = 'list.txt'
 COOKIEJAR = 'tmp/{}.cookie'
-OUTPUT = 'songs/{}.mp3'
+DEFAULT_OUTPUT_DIR = 'songs'
+OUTPUT = '{}/{}.mp3'
 
 TIME_WAIT = 60
 
 QUERY_URL = 'http://www.youtube.com/results?search_query={}'
-SELECTOR = 'h3.yt-lockup-title > a'
 YOUTUBE_URL = 'http://www.youtube.com{}'
 CONVERT_URL = 'http://www.flv2mp3.org/convert/'
 DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
@@ -27,12 +27,14 @@ parser = argparse.ArgumentParser(
         description='Download songs from Youtube and convert them to mp3.')
 parser.add_argument('lists', metavar='LIST_FILE', nargs='*', 
         default=[DEFAULT_LIST], help='file containing song names')
-parser.add_argument('--force', '-f', action='store_true', 
+parser.add_argument('-f', '--force', action='store_true', 
         help='ignore if the song is already downloaded')
+parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_DIR, metavar='DIR',
+        help='directory where to store downloaded songs')
 args = parser.parse_args()
 
 def download_song(id, c):
-    f = open(OUTPUT.format(name), 'w')
+    f = open(OUTPUT.format(args.output, name), 'w')
 
     c.reset()
     c.setopt(c.URL, DOWNLOAD_URL.format(id))
@@ -45,8 +47,8 @@ def download_song(id, c):
     print '{}: {:.3f} MB'.format(name, float(f.tell()) / (1 << 20))
     f.close()
 
-if not os.path.exists('songs'):
-    os.makedirs('songs')
+if not os.path.exists(args.output):
+    os.makedirs(args.output)
 
 if not os.path.exists('tmp'):
     os.makedirs('tmp')
@@ -56,7 +58,7 @@ names = []
 for filename in args.lists:
     try:
         f = open(filename, 'r')
-        names.extend(map(lambda x: x[:-1], f.readlines()))
+        names.extend(map(lambda x: x.strip(), f.readlines()))
     except IOError as e:
         print 'Error while reading list "{}": {}'.format(filename, e)
 
@@ -65,16 +67,20 @@ print 'Requesting conversion...'
 data = {}
 
 for name in names:
-    if not args.force and os.path.isfile(OUTPUT.format(name)):
+    if not args.force and os.path.isfile(OUTPUT.format(args.output, name)):
         print '{} -> exists'.format(name)
         continue
 
     doc = pq(QUERY_URL.format(name))
-    object = doc(SELECTOR)
+    object = doc('h3.yt-lockup-title > a')
     path = object.attr('href')
     title = object.html()
+    
+    if not path:
+        print '{} -> no resutls'.format(name)
+        continue
 
-    url = YOUTUBE_URL .format(path)
+    url = YOUTUBE_URL.format(path)
     postdata = {'url': url, 'format': 1, 'service': 'youtube'}
     id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
 
