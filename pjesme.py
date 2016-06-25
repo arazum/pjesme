@@ -16,25 +16,33 @@ COOKIEJAR = 'tmp/{}.cookie'
 DEFAULT_OUTPUT_DIR = 'songs'
 OUTPUT = '{}/{}.mp3'
 
-TIME_WAIT = 60
+DEFAULT_WAIT = 60
 
 QUERY_URL = 'http://www.youtube.com/results?search_query={}'
 YOUTUBE_URL = 'http://www.youtube.com{}'
 CONVERT_URL = 'http://www.flv2mp3.org/convert/'
 DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
 
+MP3_MAGIC = 'ID3'
+
 parser = argparse.ArgumentParser(
         description='Download songs from Youtube and convert them to mp3.')
 parser.add_argument('lists', metavar='LIST_FILE', nargs='*', 
-        default=[DEFAULT_LIST], help='file containing song names')
+        default=[DEFAULT_LIST], help='''file containing song names 
+        (default: {})'''.format(DEFAULT_LIST))
 parser.add_argument('-f', '--force', action='store_true', 
         help='ignore if the song is already downloaded')
 parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_DIR, metavar='DIR',
-        help='directory where to store downloaded songs')
+        help='''directory where to store downloaded songs 
+        (default: {})'''.format(DEFAULT_OUTPUT_DIR))
+parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS', 
+        type=int, help='''wait between conversion request and download 
+        (default: {})'''.format(DEFAULT_WAIT))
 args = parser.parse_args()
 
 def download_song(id, c):
-    f = open(OUTPUT.format(args.output, name), 'w')
+    filename = OUTPUT.format(args.output, name)
+    f = open(filename, 'w')
 
     c.reset()
     c.setopt(c.URL, DOWNLOAD_URL.format(id))
@@ -44,7 +52,16 @@ def download_song(id, c):
     c.perform()
     c.close()
 
-    print '{}: {:.3f} MB'.format(name, float(f.tell()) / (1 << 20))
+    size = f.tell()
+    f.close()
+
+    f = open(filename, 'r')
+    if f.read(len(MP3_MAGIC)) == MP3_MAGIC:
+        print '{}: {:.3f} MB'.format(name, float(size) / (1 << 20))
+    else:
+        print '{}: error (downloaded file not mp3)'.format(name)
+        os.remove(filename)
+
     f.close()
 
 if not os.path.exists(args.output):
@@ -71,13 +88,18 @@ for name in names:
         print '{} -> exists'.format(name)
         continue
 
-    doc = pq(QUERY_URL.format(name))
+    try:
+        doc = pq(QUERY_URL.format(name))
+    except Exception as e:
+        print '{} -> query error: {}'.format(name, e)
+        continue
+
     object = doc('h3.yt-lockup-title > a')
     path = object.attr('href')
     title = object.html()
     
     if not path:
-        print '{} -> no resutls'.format(name)
+        print '{} -> no results'.format(name)
         continue
 
     url = YOUTUBE_URL.format(path)
@@ -89,18 +111,22 @@ for name in names:
     c.setopt(c.POSTFIELDS, urlencode(postdata))
     c.setopt(c.WRITEFUNCTION, lambda x: None)
     c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
-    c.perform()
+
+    try:
+        c.perform()
+    except Exception as e:
+        print '{} -> request error:'.format(name, e)
+        continue
 
     print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
-
     data[name] = id, c
 
 if len(data) == 0:
     print '\nNothing to download.'
     exit()
 
-print '\nDone. Waiting {} second(s)...'.format(TIME_WAIT)
-time.sleep(TIME_WAIT)
+print '\nDone. Waiting {} second(s)...'.format(args.wait)
+time.sleep(args.wait)
 
 print 'Downloading...'
 
@@ -114,6 +140,5 @@ for name, (id, c) in data.iteritems():
 
 for p in processes:
     p.join()
-
 
 print 'Done.'
