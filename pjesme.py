@@ -9,6 +9,25 @@ import os
 import sys
 import urlparse
 from multiprocessing import Process
+import argparse
+
+DEFAULT_LIST = 'list.txt'
+COOKIEJAR = 'tmp/{}.cookie'
+OUTPUT = 'songs/{}.mp3'
+
+TIME_WAIT = 60
+
+QUERY_URL = 'http://www.youtube.com/results?search_query={}'
+SELECTOR = 'h3.yt-lockup-title > a'
+YOUTUBE_URL = 'http://www.youtube.com{}'
+CONVERT_URL = 'http://www.flv2mp3.org/convert/'
+DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
+
+parser = argparse.ArgumentParser(
+        description='Download songs from Youtube and convert them to mp3.')
+parser.add_argument('lists', metavar='LIST_FILE', nargs='*', 
+        default=[DEFAULT_LIST], help='file containing song names')
+args = parser.parse_args()
 
 def download_song(id, c):
     f = open(OUTPUT.format(name), 'w')
@@ -24,35 +43,15 @@ def download_song(id, c):
     print '{}: {:.3f} MB'.format(name, float(f.tell()) / (1 << 20))
     f.close()
 
-
-LIST_FILE = 'list.txt'
-
-
 if not os.path.exists('songs'):
     os.makedirs('songs')
 
 if not os.path.exists('tmp'):
     os.makedirs('tmp')
 
-COOKIEJAR = 'tmp/{}.cookie'
-OUTPUT = 'songs/{}.mp3'
-
-TIME_WAIT = 60
-
-QUERY_URL = 'http://www.youtube.com/results?search_query={}'
-SELECTOR = 'h3.yt-lockup-title > a'
-YOUTUBE_URL = 'http://www.youtube.com{}'
-CONVERT_URL = 'http://www.flv2mp3.org/convert/'
-DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
-
-if len(sys.argv) <= 1:
-    files = [LIST_FILE]
-else:
-    files = sys.argv[1:]
-
 names = []
 
-for filename in files:
+for filename in args.lists:
     f = open(filename, 'r')
     names.extend(map(lambda x: x[:-1], f.readlines()))
 
