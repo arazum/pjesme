@@ -27,6 +27,8 @@ parser = argparse.ArgumentParser(
         description='Download songs from Youtube and convert them to mp3.')
 parser.add_argument('lists', metavar='LIST_FILE', nargs='*', 
         default=[DEFAULT_LIST], help='file containing song names')
+parser.add_argument('--force', '-f', action='store_true', 
+        help='ignore if the song is already downloaded')
 args = parser.parse_args()
 
 def download_song(id, c):
@@ -52,15 +54,18 @@ if not os.path.exists('tmp'):
 names = []
 
 for filename in args.lists:
-    f = open(filename, 'r')
-    names.extend(map(lambda x: x[:-1], f.readlines()))
+    try:
+        f = open(filename, 'r')
+        names.extend(map(lambda x: x[:-1], f.readlines()))
+    except IOError as e:
+        print 'Error while reading list "{}": {}'.format(filename, e)
 
 print 'Requesting conversion...'
 
 data = {}
 
 for name in names:
-    if os.path.isfile(OUTPUT.format(name)):
+    if not args.force and os.path.isfile(OUTPUT.format(name)):
         print '{} -> exists'.format(name)
         continue
 
