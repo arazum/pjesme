@@ -80,6 +80,10 @@ def download_song(name, id, c):
         else:
             os.remove(filename)
 
+            if c.getinfo(pycurl.HTTP_CODE) == 500:
+                print '{} -> unable to convert (500)'.format(name)
+                return
+
 if not os.path.exists(args.output):
     os.makedirs(args.output)
 
