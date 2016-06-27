@@ -16,10 +16,11 @@ COOKIEJAR = 'tmp/{}.cookie'
 DEFAULT_OUTPUT_DIR = 'songs'
 OUTPUT = '{}/{}.mp3'
 
-DEFAULT_WAIT = 120
+DEFAULT_WAIT = 10 
 
-QUERY_URL = 'http://www.youtube.com/results?search_query={}'
 YOUTUBE_URL = 'http://www.youtube.com{}'
+QUERY_URL = YOUTUBE_URL.format('/results?search_query={}')
+WATCH_URL = YOUTUBE_URL.format('/watch?v={}')
 CONVERT_URL = 'http://www.flv2mp3.org/convert/'
 DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
 
@@ -36,42 +37,48 @@ parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_DIR, metavar='DIR',
         help='''directory where to store downloaded songs 
         (default: {})'''.format(DEFAULT_OUTPUT_DIR))
 parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS', 
-        type=int, help='''wait between conversion request and download 
+        type=int, help='''wait between download attempts 
         (default: {})'''.format(DEFAULT_WAIT))
 args = parser.parse_args()
 
 def download_song(name, id, c):
     filename = OUTPUT.format(args.output, name)
-    try:
-        f = open(filename, 'w')
-    except IOError as e:
-        print '{} -> error while opening file: {}'.format(name, e)
-        return
 
-    c.reset()
-    c.setopt(c.URL, DOWNLOAD_URL.format(id))
-    c.setopt(c.FOLLOWLOCATION, True)
-    c.setopt(c.WRITEDATA, f)
-    c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
+    while True:
+        time.sleep(args.wait)
 
-    try:
-        c.perform()
-        c.close()
+        try:
+            f = open(filename, 'w')
+        except IOError as e:
+            print '{} -> error while opening file: {}'.format(name, e)
+            return
 
-        size = f.tell()
+        c.reset()
+        c.setopt(c.URL, DOWNLOAD_URL.format(id))
+        c.setopt(c.FOLLOWLOCATION, True)
+        c.setopt(c.WRITEDATA, f)
+        c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
+
+        try:
+            c.perform()
+
+            size = f.tell()
+            f.close()
+        except Exception as e:
+            print '{} -> download error: {}'.format(name, e)
+            return
+
+        f = open(filename, 'r')
+        ok = f.read(len(MP3_MAGIC)) == MP3_MAGIC
         f.close()
-    except Exception as e:
-        print '{} -> download error: {}'.format(name, e)
-        return
 
-    f = open(filename, 'r')
-    if f.read(len(MP3_MAGIC)) == MP3_MAGIC:
-        print '{} -> {:.3f} MB'.format(name, float(size) / (1 << 20))
-    else:
-        print '{} -> error (downloaded file not mp3)'.format(name)
-        os.remove(filename)
+        if ok:
+            c.close()
 
-    f.close()
+            print '{} -> {:.3f} MB'.format(name, float(size) / (1 << 20))
+            return
+        else:
+            os.remove(filename)
 
 if not os.path.exists(args.output):
     os.makedirs(args.output)
@@ -93,27 +100,40 @@ print 'Requesting conversion...'
 data = {}
 
 for name in names:
-    if not args.force and os.path.isfile(OUTPUT.format(args.output, name)):
+    if name.startswith('#'):
+        filename = name[1:]
+        direct = True
+    else:
+        filename = name
+        direct = False
+
+    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
         print '{} -> exists'.format(name)
         continue
 
-    try:
-        doc = pq(QUERY_URL.format(name))
-    except Exception as e:
-        print '{} -> query error: {}'.format(name, e)
-        continue
+    if direct:
+        id = name[1:]
+        title = id
+        url = WATCH_URL.format(id)
+    else:
+        try:
+            doc = pq(QUERY_URL.format(name))
+        except Exception as e:
+            print '{} -> query error: {}'.format(name, e)
+            continue
 
-    object = doc('h3.yt-lockup-title > a')
-    path = object.attr('href')
-    title = object.html()
-    
-    if not path:
-        print '{} -> no results'.format(name)
-        continue
+        object = doc('h3.yt-lockup-title > a')
+        path = object.attr('href')
+        title = object.html()
+        
+        if not path:
+            print '{} -> no results'.format(name)
+            continue
 
-    url = YOUTUBE_URL.format(path)
+        url = YOUTUBE_URL.format(path)
+        id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
+
     postdata = {'url': url, 'format': 1, 'service': 'youtube'}
-    id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
 
     c = pycurl.Curl()
     c.setopt(c.URL, CONVERT_URL)
@@ -128,14 +148,11 @@ for name in names:
         continue
 
     print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
-    data[name] = id, c
+    data[filename] = id, c
 
 if len(data) == 0:
     print '\nNothing to download.'
     exit()
-
-print '\nDone. Waiting {} second(s)...'.format(args.wait)
-time.sleep(args.wait)
 
 print 'Downloading...'
 
