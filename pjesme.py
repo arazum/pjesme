@@ -41,6 +41,12 @@ parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS',
         (default: {})'''.format(DEFAULT_WAIT))
 args = parser.parse_args()
 
+
+def check_filename(filename):
+    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
+        print '{} -> exists'.format(filename)
+        raise Excepton('Song already exists')
+
 def download_song(name, id, c):
     filename = OUTPUT.format(args.output, name)
 
@@ -86,26 +92,31 @@ def download_song(name, id, c):
 
 def get_id_and_cookie(name):
     if name.startswith('#'):
-        filename = name[1:]
-        direct = True
+        is_query = False
     else:
         filename = name
-        direct = False
+        is_query = True
 
-    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
-        print '{} -> exists'.format(name)
-        raise Excepton('Song already exists')
 
-    if direct:
+    if not is_query:
         id = name[1:]
-        title = id
         url = WATCH_URL.format(id)
+        try:
+            doc = pq(url)
+        except Exception as e:
+            print '{} -> query error: {}'.format(name, e)
+            raise Excepton('Query error')
+
+        title = doc('#eow-title').text()
+        filename = title
+        check_filename(filename)
     else:
+        check_filename(filename)
         try:
             doc = pq(QUERY_URL.format(name))
         except Exception as e:
             print '{} -> query error: {}'.format(name, e)
-            raise Excepton('Song already exists')
+            raise Excepton('Query error')
 
         object = doc('h3.yt-lockup-title > a')
         path = object.attr('href')
@@ -132,15 +143,15 @@ def get_id_and_cookie(name):
         print '{} -> request error:'.format(name, e)
         raise Excepton('Song already exists')
 
-    print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
-    return id, c
+    print '{} -> {} [{}]'.format(filename, title.encode('utf8'), id)
+    return id, c, filename
 
 def download(name):
     try:
-        id, c = get_id_and_cookie(name)
+        id, c, filename = get_id_and_cookie(name)
     except Exception as e:
         return
-    download_song(name, id, c)
+    download_song(filename, id, c)
 
 
 if not os.path.exists(args.output):
