@@ -84,6 +84,65 @@ def download_song(name, id, c):
                 print '{} -> unable to convert (500)'.format(name)
                 return
 
+def get_id_and_cookie(name):
+    if name.startswith('#'):
+        filename = name[1:]
+        direct = True
+    else:
+        filename = name
+        direct = False
+
+    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
+        print '{} -> exists'.format(name)
+        raise Excepton('Song already exists')
+
+    if direct:
+        id = name[1:]
+        title = id
+        url = WATCH_URL.format(id)
+    else:
+        try:
+            doc = pq(QUERY_URL.format(name))
+        except Exception as e:
+            print '{} -> query error: {}'.format(name, e)
+            raise Excepton('Song already exists')
+
+        object = doc('h3.yt-lockup-title > a')
+        path = object.attr('href')
+        title = object.html()
+        
+        if not path:
+            print '{} -> no results'.format(name)
+            raise Excepton('Song already exists')
+
+        url = YOUTUBE_URL.format(path)
+        id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
+
+    postdata = {'url': url, 'format': 1, 'service': 'youtube'}
+
+    c = pycurl.Curl()
+    c.setopt(c.URL, CONVERT_URL)
+    c.setopt(c.POSTFIELDS, urlencode(postdata))
+    c.setopt(c.WRITEFUNCTION, lambda x: None)
+    c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
+
+    try:
+        c.perform()
+    except Exception as e:
+        print '{} -> request error:'.format(name, e)
+        raise Excepton('Song already exists')
+
+    print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
+    return id, c
+
+def download(name):
+    try:
+        id, c = get_id_and_cookie(name)
+    except Exception as e:
+        return
+    download_song(name, id, c)
+
+
 if not os.path.exists(args.output):
     os.makedirs(args.output)
 
@@ -101,70 +160,11 @@ for filename in args.lists:
 
 print 'Requesting conversion...'
 
-data = {}
-
-for name in names:
-    if name.startswith('#'):
-        filename = name[1:]
-        direct = True
-    else:
-        filename = name
-        direct = False
-
-    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
-        print '{} -> exists'.format(name)
-        continue
-
-    if direct:
-        id = name[1:]
-        title = id
-        url = WATCH_URL.format(id)
-    else:
-        try:
-            doc = pq(QUERY_URL.format(name))
-        except Exception as e:
-            print '{} -> query error: {}'.format(name, e)
-            continue
-
-        object = doc('h3.yt-lockup-title > a')
-        path = object.attr('href')
-        title = object.html()
-        
-        if not path:
-            print '{} -> no results'.format(name)
-            continue
-
-        url = YOUTUBE_URL.format(path)
-        id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
-
-    postdata = {'url': url, 'format': 1, 'service': 'youtube'}
-
-    c = pycurl.Curl()
-    c.setopt(c.URL, CONVERT_URL)
-    c.setopt(c.POSTFIELDS, urlencode(postdata))
-    c.setopt(c.WRITEFUNCTION, lambda x: None)
-    c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
-
-    try:
-        c.perform()
-    except Exception as e:
-        print '{} -> request error:'.format(name, e)
-        continue
-
-    print '{} -> {} [{}]'.format(name, title.encode('utf8'), id)
-    data[filename] = id, c
-
-if len(data) == 0:
-    print '\nNothing to download.'
-    exit()
-
-print 'Downloading...'
-
 processes = []
 
-for name, (id, c) in data.iteritems():
+for name in names:
     if __name__ == '__main__':
-        p = Process(target=download_song, args=(name, id, c))
+        p = Process(target=download, args=(name,))
         processes.append(p)
         p.start()
 
