@@ -42,13 +42,13 @@ parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS',
 args = parser.parse_args()
 
 
-def check_filename(filename):
-    if not args.force and os.path.isfile(OUTPUT.format(args.output, filename)):
-        print '{} -> exists'.format(filename)
-        raise Excepton('Song already exists')
+def check_filename(title):
+    if not args.force and os.path.isfile(OUTPUT.format(args.output, title)):
+        print '{} -> exists'.format(title)
+        raise Exception('Song already exists')
 
-def download_song(name, id, c):
-    filename = OUTPUT.format(args.output, name)
+def download_song((id, title, c)):
+    filename = OUTPUT.format(args.output, title)
 
     while True:
         time.sleep(args.wait)
@@ -56,7 +56,7 @@ def download_song(name, id, c):
         try:
             f = open(filename, 'w')
         except IOError as e:
-            print '{} -> error while opening file: {}'.format(name, e)
+            print '{} -> error while opening file: {}'.format(title, e)
             return
 
         c.reset()
@@ -71,7 +71,7 @@ def download_song(name, id, c):
             size = f.tell()
             f.close()
         except Exception as e:
-            print '{} -> download error: {}'.format(name, e)
+            print '{} -> download error: {}'.format(title, e)
             return
 
         f = open(filename, 'r')
@@ -81,50 +81,49 @@ def download_song(name, id, c):
         if ok:
             c.close()
 
-            print '{} -> {:.3f} MB'.format(name, float(size) / (1 << 20))
+            print '{} -> {:.3f} MB'.format(title, float(size) / (1 << 20))
             return
         else:
             os.remove(filename)
 
             if c.getinfo(pycurl.HTTP_CODE) == 500:
-                print '{} -> unable to convert (500)'.format(name)
+                print '{} -> unable to convert (500)'.format(title)
                 return
 
-def get_id_and_cookie(name):
-    if name.startswith('#'):
+def get_query_data(query):
+    if query.startswith('#'):
         is_query = False
     else:
-        filename = name
+        title = query
         is_query = True
 
 
     if not is_query:
-        id = name[1:]
+        id = query[1:]
         url = WATCH_URL.format(id)
         try:
             doc = pq(url)
         except Exception as e:
-            print '{} -> query error: {}'.format(name, e)
-            raise Excepton('Query error')
+            print '{} -> query error: {}'.format(query, e)
+            raise Exception('Query error')
 
         title = doc('#eow-title').text()
-        filename = title
-        check_filename(filename)
+        check_filename(title)
     else:
-        check_filename(filename)
+        check_filename(title)
         try:
-            doc = pq(QUERY_URL.format(name))
+            doc = pq(QUERY_URL.format(query))
         except Exception as e:
-            print '{} -> query error: {}'.format(name, e)
-            raise Excepton('Query error')
+            print '{} -> query error: {}'.format(query, e)
+            raise Exception('Query error')
 
         object = doc('h3.yt-lockup-title > a')
         path = object.attr('href')
         title = object.html()
         
         if not path:
-            print '{} -> no results'.format(name)
-            raise Excepton('Song already exists')
+            print '{} -> no results'.format(query)
+            raise Exception('Song already exists')
 
         url = YOUTUBE_URL.format(path)
         id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
@@ -140,19 +139,18 @@ def get_id_and_cookie(name):
     try:
         c.perform()
     except Exception as e:
-        print '{} -> request error:'.format(name, e)
-        raise Excepton('Song already exists')
+        print '{} -> request error:'.format(query, e)
+        raise Exception('Song already exists')
 
-    print '{} -> {} [{}]'.format(filename, title.encode('utf8'), id)
-    return id, c, filename
+    print '{} -> {} [{}]'.format(title, title.encode('utf8'), id)
+    return id, title, c
 
-def download(name):
+def download(query):
     try:
-        id, c, filename = get_id_and_cookie(name)
+        data = get_query_data(query)
     except Exception as e:
         return
-    download_song(filename, id, c)
-
+    download_song(data)
 
 if not os.path.exists(args.output):
     os.makedirs(args.output)
@@ -160,12 +158,12 @@ if not os.path.exists(args.output):
 if not os.path.exists('tmp'):
     os.makedirs('tmp')
 
-names = []
+queries = []
 
 for filename in args.lists:
     try:
         f = open(filename, 'r')
-        names.extend(map(lambda x: x.strip(), f.readlines()))
+        queries.extend(map(lambda x: x.strip(), f.readlines()))
     except IOError as e:
         print 'Error while reading list "{}": {}'.format(filename, e)
 
@@ -173,9 +171,9 @@ print 'Requesting conversion...'
 
 processes = []
 
-for name in names:
+for query in queries:
     if __name__ == '__main__':
-        p = Process(target=download, args=(name,))
+        p = Process(target=download, args=(query,))
         processes.append(p)
         p.start()
 
