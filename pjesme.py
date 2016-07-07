@@ -17,6 +17,7 @@ DEFAULT_OUTPUT_DIR = 'songs'
 OUTPUT = '{}/{}.mp3'
 
 DEFAULT_WAIT = 10 
+DEFAULT_ATTEMPTS = 10
 
 YOUTUBE_URL = 'http://www.youtube.com{}'
 QUERY_URL = YOUTUBE_URL.format('/results?search_query={}')
@@ -39,6 +40,9 @@ parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_DIR, metavar='DIR',
 parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS', 
         type=int, help='''wait between download attempts 
         (default: {})'''.format(DEFAULT_WAIT))
+parser.add_argument('-a', '--attempts', default=DEFAULT_ATTEMPTS, metavar='N', 
+        type=int, help='''number of download attempts 
+        (default: {})'''.format(DEFAULT_ATTEMPTS))
 args = parser.parse_args()
 
 
@@ -52,7 +56,7 @@ def file_exists(title):
 def download_song((id, name, title, c)):
     filename = OUTPUT.format(args.output, name)
 
-    while True:
+    for i in range(args.attempts):
         time.sleep(args.wait)
 
         try:
@@ -92,6 +96,8 @@ def download_song((id, name, title, c)):
                 print '{} -> unable to convert (500)'.format(title)
                 return
 
+    print '{} -> exceeded download attempt limit ({})'.format(title, args.attempts)
+
 def get_query_data(query):
     # provides: id, url, filename, title, result
     if query.startswith('#'):
@@ -104,14 +110,14 @@ def get_query_data(query):
             print '{} -> query error: {}'.format(query, e)
             return None
 
-        filename = doc('#eow-title').text()
-        title = filename.encode('utf8')
-        result = title
+        filename = doc('#eow-title').text().encode('utf8')
+        title = filename
+        result = filename
 
         if file_exists(filename):
             return None
     else:
-        filename = query.decode('utf8')
+        filename = query
         title = query
 
         if file_exists(filename):
@@ -177,7 +183,7 @@ processes = []
 
 for query in queries:
     if __name__ == '__main__':
-        p = Process(target=perform, args=(query.encode('utf8'),))
+        p = Process(target=perform, args=(query,))
         processes.append(p)
         p.start()
 
