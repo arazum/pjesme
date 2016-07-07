@@ -42,10 +42,12 @@ parser.add_argument('-w', '--wait', default=DEFAULT_WAIT, metavar='SECS',
 args = parser.parse_args()
 
 
-def check_filename(title):
+def file_exists(title):
     if not args.force and os.path.isfile(OUTPUT.format(args.output, title)):
         print '{} -> exists'.format(title)
-        raise Exception('Song already exists')
+        return True
+    else:
+        return False
 
 def download_song((id, title, c)):
     filename = OUTPUT.format(args.output, title)
@@ -94,9 +96,8 @@ def get_query_data(query):
     if query.startswith('#'):
         is_query = False
     else:
-        title = query
+        title = query.encode('utf8')
         is_query = True
-
 
     if not is_query:
         id = query[1:]
@@ -105,25 +106,28 @@ def get_query_data(query):
             doc = pq(url)
         except Exception as e:
             print '{} -> query error: {}'.format(query, e)
-            raise Exception('Query error')
+            return None
 
-        title = doc('#eow-title').text()
-        check_filename(title)
+        title = doc('#eow-title').text().encode('utf8')
+        if file_exists(title):
+            return None
     else:
-        check_filename(title)
+        if file_exists(title):
+            return None
+
         try:
             doc = pq(QUERY_URL.format(query))
         except Exception as e:
             print '{} -> query error: {}'.format(query, e)
-            raise Exception('Query error')
+            return None
 
         object = doc('h3.yt-lockup-title > a')
         path = object.attr('href')
-        title = object.html()
+        title = object.html().encode('utf8')
         
         if not path:
             print '{} -> no results'.format(query)
-            raise Exception('Song already exists')
+            return None
 
         url = YOUTUBE_URL.format(path)
         id = urlparse.parse_qs(urlparse.urlparse(url).query)['v'][0]
@@ -140,16 +144,16 @@ def get_query_data(query):
         c.perform()
     except Exception as e:
         print '{} -> request error:'.format(query, e)
-        raise Exception('Song already exists')
+        return None
 
-    print '{} -> {} [{}]'.format(title, title.encode('utf8'), id)
+    print '{} -> {} [{}]'.format(title, title, id)
     return id, title, c
 
-def download(query):
-    try:
-        data = get_query_data(query)
-    except Exception as e:
+def perform(query):
+    data = get_query_data(query)
+    if data == None:
         return
+
     download_song(data)
 
 if not os.path.exists(args.output):
@@ -167,17 +171,13 @@ for filename in args.lists:
     except IOError as e:
         print 'Error while reading list "{}": {}'.format(filename, e)
 
-print 'Requesting conversion...'
-
 processes = []
 
 for query in queries:
     if __name__ == '__main__':
-        p = Process(target=download, args=(query,))
+        p = Process(target=perform, args=(query,))
         processes.append(p)
         p.start()
 
 for p in processes:
     p.join()
-
-print 'Done.'
