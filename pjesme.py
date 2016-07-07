@@ -2,7 +2,7 @@
 
 from pyquery import PyQuery as pq
 import pycurl
-from urllib import urlencode
+import urllib
 from io import BytesIO
 import time
 import os
@@ -118,7 +118,7 @@ def get_query_data(query):
             return None
 
         try:
-            doc = pq(QUERY_URL.format(query))
+            doc = pq(QUERY_URL.format(urllib.quote(query)))
         except Exception as e:
             print '{} -> query error: {}'.format(query, e)
             return None
@@ -138,7 +138,7 @@ def get_query_data(query):
 
     c = pycurl.Curl()
     c.setopt(c.URL, CONVERT_URL)
-    c.setopt(c.POSTFIELDS, urlencode(postdata))
+    c.setopt(c.POSTFIELDS, urllib.urlencode(postdata))
     c.setopt(c.WRITEFUNCTION, lambda x: None)
     c.setopt(c.COOKIEJAR, COOKIEJAR.format(id))
 
