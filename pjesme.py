@@ -49,8 +49,8 @@ def file_exists(title):
     else:
         return False
 
-def download_song((id, title, c)):
-    filename = OUTPUT.format(args.output, title)
+def download_song((id, name, title, c)):
+    filename = OUTPUT.format(args.output, name)
 
     while True:
         time.sleep(args.wait)
@@ -93,14 +93,10 @@ def download_song((id, title, c)):
                 return
 
 def get_query_data(query):
+    # provides: id, url, filename, title, result
     if query.startswith('#'):
-        is_query = False
-    else:
-        title = query.encode('utf8')
-        is_query = True
-
-    if not is_query:
         id = query[1:]
+
         url = WATCH_URL.format(id)
         try:
             doc = pq(url)
@@ -108,11 +104,17 @@ def get_query_data(query):
             print '{} -> query error: {}'.format(query, e)
             return None
 
-        title = doc('#eow-title').text().encode('utf8')
-        if file_exists(title):
+        filename = doc('#eow-title').text()
+        title = filename.encode('utf8')
+        result = title
+
+        if file_exists(filename):
             return None
     else:
-        if file_exists(title):
+        filename = query.decode('utf8')
+        title = query
+
+        if file_exists(filename):
             return None
 
         try:
@@ -123,7 +125,7 @@ def get_query_data(query):
 
         object = doc('h3.yt-lockup-title > a')
         path = object.attr('href')
-        title = object.html().encode('utf8')
+        result = object.html().encode('utf8')
         
         if not path:
             print '{} -> no results'.format(query)
@@ -146,8 +148,8 @@ def get_query_data(query):
         print '{} -> request error:'.format(query, e)
         return None
 
-    print '{} -> {} [{}]'.format(title, title, id)
-    return id, title, c
+    print '{} -> {} [{}]'.format(query, result, id)
+    return id, filename, title, c
 
 def perform(query):
     data = get_query_data(query)
@@ -175,7 +177,7 @@ processes = []
 
 for query in queries:
     if __name__ == '__main__':
-        p = Process(target=perform, args=(query,))
+        p = Process(target=perform, args=(query.encode('utf8'),))
         processes.append(p)
         p.start()
 
