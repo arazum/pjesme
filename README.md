@@ -2,6 +2,12 @@
 
 This program helps you to download songs from a list. 
 
+# Installation
+
+Before first usage make sure you have the requirements installed:
+
+`sudo pip install -r requirements.txt`
+
 # Usage
 
 Write all of your favourite songs in a file line by line. You can take youtube_id of the song and write it like `#<youtube_id>`.
