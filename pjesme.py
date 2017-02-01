@@ -46,9 +46,9 @@ parser.add_argument('-a', '--attempts', default=DEFAULT_ATTEMPTS, metavar='N',
 args = parser.parse_args()
 
 
-def file_exists(title):
+def file_exists(title, id=""):
     if not args.force and os.path.isfile(OUTPUT.format(args.output, title)):
-        print '{} -> exists'.format(title)
+        print '#{}: {} -> exists'.format(id, title)
         return True
     else:
         return False
@@ -114,7 +114,7 @@ def get_query_data(query):
         title = filename
         result = filename
 
-        if file_exists(filename):
+        if file_exists(filename, id):
             return None
     else:
         filename = query
