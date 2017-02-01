@@ -29,6 +29,9 @@ Petar Graso - Srce za vodica
 
 and run `./pjesme.py songs.txt -o songs` and the program will download your songs to songs/ directory.
 
+
+Also, we included a file which includes a lot of compilations of best classical music. You can download it by writing `./pjesme.py lists/classic.txt -o classic-music-folder`
+
 # Authors
 
 The program is written by Antun Razum and Mislav Magerl.
