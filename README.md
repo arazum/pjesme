@@ -8,6 +8,8 @@ Before first usage make sure you have the requirements installed:
 
 `sudo pip install -r requirements.txt`
 
+Note: If you have trouble installing pycurl check [this](http://stackoverflow.com/a/30590000) answer. 
+
 # Usage
 
 Write all of your favourite songs in a file line by line. You can take youtube_id of the song and write it like `#<youtube_id>`.
