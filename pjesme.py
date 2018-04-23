@@ -22,8 +22,8 @@ DEFAULT_ATTEMPTS = 10
 YOUTUBE_URL = 'http://www.youtube.com{}'
 QUERY_URL = YOUTUBE_URL.format('/results?search_query={}')
 WATCH_URL = YOUTUBE_URL.format('/watch?v={}')
-CONVERT_URL = 'http://www.flv2mp3.org/convert/'
-DOWNLOAD_URL = 'http://www.flv2mp3.org/download/direct/mp3/yt_{}/'
+CONVERT_URL = 'http://www.flv2mp3.by/convert/'
+DOWNLOAD_URL = 'http://www.flv2mp3.by/download/direct/mp3/yt_{}/'
 
 MP3_MAGIC = 'ID3'
 
